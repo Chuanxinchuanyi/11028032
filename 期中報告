@@ -1,0 +1,80 @@
+import dlib
+
+# 載入臉部偵測器
+face_detector = dlib.get_frontal_face_detector()
+
+!pip install -U dlib
+!pip install -U opencv-python
+!pip install -U opencv-contrib-python
+!pip install -U cmake
+!pip install -U face_recognition_models
+!pip install -U face-alignment
+!pip install -U imutils
+!pip install -U numpy
+!pip install -U scipy
+!pip install -U matplotlib
+!pip install -U scikit-learn
+!pip install -U scikit-image
+!pip install -U pillow
+# 安裝相依套件
+!pip install opencv-python
+!pip install opencv-contrib-python
+!pip install dlib
+
+# 下載 Dlib 的臉部偵測模型
+!wget http://dlib.net/files/mmod_human_face_detector.dat.bz2
+!bzip2 -dk mmod_human_face_detector.dat.bz2
+
+# 下載 Dlib 的瞳孔預測模型
+!wget http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2
+!bzip2 -dk shape_predictor_68_face_landmarks.dat.bz2
+
+import cv2
+import dlib
+
+# 載入預訓練的臉部偵測器和瞳孔偵測器
+face_detector = dlib.cnn_face_detection_model_v1("mmod_human_face_detector.dat", device="cpu")
+eye_detector = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+
+# 載入 Dlib 的瞳孔預測模型
+pupil_predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+
+# 讀取影像檔案
+image = cv2.imread("image.jpg")
+
+# 將影像轉換為灰階
+gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+# 偵測臉部
+faces = face_detector(gray)
+
+# 逐一處理每個偵測到的臉部
+for face in faces:
+    # 取得臉部範圍的瞳孔區域
+    x, y, w, h = face.rect.left(), face.rect.top(), face.rect.width(), face.rect.height()
+    eyes = eye_detector.detectMultiScale(gray[y:y+h, x:x+w])
+    
+    # 逐一處理每個偵測到的瞳孔區域
+    for (ex, ey, ew, eh) in eyes:
+        # 在臉部範圍內的座標加上偵測到的瞳孔區域座標，得到實際的瞳孔座標
+        eye_x = x + ex
+        eye_y = y + ey
+        
+        # 從灰階影像中切割出瞳孔區域
+        eye_gray = gray[eye_y:eye_y+eh, eye_x:eye_x+ew]
+        
+        # 偵測瞳孔區域的瞳孔座標
+        landmarks = pupil_predictor(eye_gray, dlib.rectangle(0, 0, ew, eh))
+        
+        # 取得瞳孔座標
+        pupil_x = landmarks.part(37).x + eye_x
+        pupil_y = landmarks.part(37).y + eye_y
+        
+        # 在原始影像上畫出瞳孔的圓點
+        cv2.circle(image, (pupil_x, pupil_y), 2, (0, 255, 0), -1)
+
+        # 顯示輸出結果
+        cv2.imshow("Pupil Detection", image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
